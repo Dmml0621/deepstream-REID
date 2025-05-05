@@ -20,6 +20,7 @@
 #include "nvds_yml_parser.h"
 
 #include "gstnvdsmeta.h"
+#include "nvds_tracker_meta.h"
 
 #define PGIE_CONFIG_FILE  "dstest2_pgie_config.txt"
 #define SGIE1_CONFIG_FILE "dstest2_sgie1_config.txt"
@@ -96,6 +97,7 @@ osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info,
     guint person_count = 0;
     NvDsMetaList * l_frame = NULL;
     NvDsMetaList * l_obj = NULL;
+    NvDsUserMetaList * l_obj_user = NULL;
     NvDsDisplayMeta *display_meta = NULL;
 
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta (buf);
@@ -104,16 +106,24 @@ osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info,
       l_frame = l_frame->next) {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *) (l_frame->data);
         int offset = 0;
-        for (l_obj = frame_meta->obj_meta_list; l_obj != NULL;
-                l_obj = l_obj->next) {
+        for (l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next) {
             obj_meta = (NvDsObjectMeta *) (l_obj->data);
-            if (obj_meta->class_id == PGIE_CLASS_ID_VEHICLE) {
-                vehicle_count++;
-                num_rects++;
-            }
-            if (obj_meta->class_id == PGIE_CLASS_ID_PERSON) {
-                person_count++;
-                num_rects++;
+            guint64 id = obj_meta->object_id;
+
+            for (l_obj_user = obj_meta->obj_user_meta_list; l_obj_user != NULL; l_obj_user = l_obj_user->next) {
+              NvDsUserMeta *user_meta = (NvDsUserMeta *) l_obj_user->data;             
+
+              if (user_meta && user_meta->base_meta.meta_type == NVDS_TRACKER_OBJ_REID_META && user_meta->user_meta_data) {
+                NvDsObjReid *pReidObj = (NvDsObjReid *) (user_meta->user_meta_data);
+
+                if (pReidObj != NULL && pReidObj->ptr_host != NULL && pReidObj->featureSize > 0) {
+                  printf ("REID embedding for Object %lu [", id);
+                  for (guint ele_i = 0; ele_i < pReidObj->featureSize; ele_i++) {
+                    printf ("%f, ", pReidObj->ptr_host[ele_i]);
+                  }
+                  printf ("]\n");
+                }
+              }
             }
         }
     }
@@ -164,39 +174,8 @@ bus_call (GstBus * bus, GstMessage * msg, gpointer data)
 #define CONFIG_GROUP_TRACKER_LL_LIB_FILE "ll-lib-file"
 #define CONFIG_GPU_ID "gpu-id"
 
-static gchar *
-get_absolute_file_path (gchar *cfg_file_path, gchar *file_path)
-{
-  gchar abs_cfg_path[PATH_MAX + 1];
-  gchar *abs_file_path;
-  gchar *delim;
 
-  if (file_path && file_path[0] == '/') {
-    return file_path;
-  }
-
-  if (!realpath (cfg_file_path, abs_cfg_path)) {
-    g_free (file_path);
-    return NULL;
-  }
-
-  // Return absolute path of config file if file_path is NULL.
-  if (!file_path) {
-    abs_file_path = g_strdup (abs_cfg_path);
-    return abs_file_path;
-  }
-
-  delim = g_strrstr (abs_cfg_path, "/");
-  *(delim + 1) = '\0';
-
-  abs_file_path = g_strconcat (abs_cfg_path, file_path, NULL);
-  g_free (file_path);
-
-  return abs_file_path;
-}
-
-int
-main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
   GMainLoop *loop = NULL;
   GstElement *pipeline = NULL, *source = NULL, *h264parser = NULL,

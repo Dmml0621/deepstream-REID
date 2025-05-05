@@ -10,10 +10,7 @@
 # its affiliates is strictly prohibited.
 ################################################################################
 
-CUDA_VER?=
-ifeq ($(CUDA_VER),)
-  $(error "CUDA_VER is not set")
-endif
+CUDA_VER=12
 
 APP:= deepstream-test2-app
 
