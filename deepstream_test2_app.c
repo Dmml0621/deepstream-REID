@@ -98,7 +98,6 @@ osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info,
     NvDsMetaList * l_frame = NULL;
     NvDsMetaList * l_obj = NULL;
     NvDsUserMetaList * l_obj_user = NULL;
-    NvDsDisplayMeta *display_meta = NULL;
 
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta (buf);
 
