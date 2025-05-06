@@ -86,9 +86,7 @@ guint sgie2_unique_id = 3;
  * of the OSD element. All the infer elements in the pipeline shall attach
  * their metadata to the GstBuffer, here we will iterate & process the metadata
  * forex: class ids to strings, counting of class_id objects etc. */
-static GstPadProbeReturn
-osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info,
-    gpointer u_data)
+static GstPadProbeReturn osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info, gpointer u_data)
 {
     GstBuffer *buf = (GstBuffer *) info->data;
     guint num_rects = 0;
@@ -115,13 +113,51 @@ osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInfo * info,
               if (user_meta && user_meta->base_meta.meta_type == NVDS_TRACKER_OBJ_REID_META && user_meta->user_meta_data) {
                 NvDsObjReid *pReidObj = (NvDsObjReid *) (user_meta->user_meta_data);
 
+                // if (pReidObj != NULL && pReidObj->ptr_host != NULL && pReidObj->featureSize > 0) {
+                //   printf ("REID embedding for Object %lu [", id);
+                //   for (guint ele_i = 0; ele_i < pReidObj->featureSize; ele_i++) {
+                //     printf ("%f, ", pReidObj->ptr_host[ele_i]);
+                //   }
+                //   printf ("]\n");
+                // }
+
                 if (pReidObj != NULL && pReidObj->ptr_host != NULL && pReidObj->featureSize > 0) {
-                  printf ("REID embedding for Object %lu [", id);
-                  for (guint ele_i = 0; ele_i < pReidObj->featureSize; ele_i++) {
-                    printf ("%f, ", pReidObj->ptr_host[ele_i]);
+                  // Create the directory path
+                  char dir_path[PATH_MAX];
+                  g_snprintf(dir_path, sizeof(dir_path) - 1, "reid_embeddings/%lu", id);
+                  
+                  // Ensure directory exists
+                  if (g_mkdir_with_parents(dir_path, 0755) == -1) {
+                      printf("Error: Failed to create directory %s: %s (errno: %d)\n", dir_path, strerror(errno), errno);
+                  } else {
+                      // Format the full file path
+                      char reid_file[PATH_MAX];
+                      g_snprintf(reid_file, sizeof(reid_file) - 1, "reid_embeddings/%lu/%06lu.txt", 
+                                 id, (gulong) frame_meta->frame_num);
+                      
+                      // Open the file for writing
+                      FILE *reid_params_dump_file = fopen(reid_file, "w");
+                      if (!reid_params_dump_file) {
+                          printf("Unable to open file %s: %s (errno: %d)\n", reid_file, strerror(errno), errno);
+                      } else {
+                          // Write the vector data to the file
+                          for (guint ele_i = 0; ele_i < pReidObj->featureSize; ele_i++) {
+                              fprintf(reid_params_dump_file, "%f", pReidObj->ptr_host[ele_i]);
+                              
+                              // Add a comma after each element except the last one
+                              if (ele_i < pReidObj->featureSize - 1) {
+                                  fprintf(reid_params_dump_file, ", ");
+                              }
+                          }
+                          fprintf(reid_params_dump_file, "\n");
+                          
+                          // Close the file
+                          fclose(reid_params_dump_file);
+                          printf("Successfully saved REID embedding for Object %lu to %s\n", id, reid_file);
+                      }
                   }
-                  printf ("]\n");
                 }
+                
               }
             }
         }

@@ -1,1 +1,3 @@
 *.o
+reid_embeddings/
+.vscode/
