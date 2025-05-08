@@ -10,15 +10,26 @@
 # its affiliates is strictly prohibited.
 ################################################################################
 
-source:
-  location: ../../../../samples/streams/sample_720p.h264
+source-list:
+  #semicolon separated uri. For ex- uri1;uri2;uriN;
+  list: file:///opt/test.mp4;file:///opt/test.mp4;file:///opt/test.mp4;file:///opt/test.mp4;file:///opt/test.mp4;file:///opt/test.mp4;file:///opt/test.mp4;file:///opt/test.mp4;
 
 streammux:
-  batch-size: 1
+  batch-size: 8
   batched-push-timeout: 40000
   width: 1920
   height: 1080
 
+osd:
+  process-mode: 0
+  display-text: 0
+
+tiler:
+  width: 1920
+  height: 1080
+
+sink:
+  qos: 0
 
 tracker:
   tracker-width: 960
