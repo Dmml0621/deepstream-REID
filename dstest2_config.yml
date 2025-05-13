@@ -39,8 +39,8 @@ tracker:
   # ll-config-file required to set different tracker types
   # ll-config-file: ../../../../samples/configs/deepstream-app/config_tracker_IOU.yml
   # ll-config-file: ../../../../samples/configs/deepstream-app/config_tracker_NvSORT.yml
-  # ll-config-file: ../../../../samples/configs/deepstream-app/config_tracker_NvDCF_perf.yml
-  ll-config-file: ../../../../samples/configs/deepstream-app/config_tracker_NvDCF_accuracy.yml
+  ll-config-file: ../../../../samples/configs/deepstream-app/config_tracker_NvDCF_perf.yml
+  # ll-config-file: ../../../../samples/configs/deepstream-app/config_tracker_NvDCF_accuracy.yml
   # ll-config-file: ../../../../samples/configs/deepstream-app/config_tracker_NvDeepSORT.yml
 
 # Inference using nvinfer:
@@ -55,6 +55,10 @@ secondary-gie1:
 secondary-gie2:
   plugin-type: 0
   config-file-path: dstest2_sgie2_config.yml
+
+secondary-gie3:
+  plugin-type: 0
+  config-file-path: dstest2_sgie3_config.yml
 
 
 ## Inference using nvinferserver:

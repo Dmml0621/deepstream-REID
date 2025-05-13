@@ -121,13 +121,13 @@ static GstPadProbeReturn osd_sink_pad_buffer_probe (GstPad * pad, GstPadProbeInf
               if (user_meta && user_meta->base_meta.meta_type == NVDS_TRACKER_OBJ_REID_META && user_meta->user_meta_data) {
                 NvDsObjReid *pReidObj = (NvDsObjReid *) (user_meta->user_meta_data);
 
-                // if (pReidObj != NULL && pReidObj->ptr_host != NULL && pReidObj->featureSize > 0) {
-                //   printf ("REID embedding for Object %lu [", id);
-                //   for (guint ele_i = 0; ele_i < pReidObj->featureSize; ele_i++) {
-                //     printf ("%f, ", pReidObj->ptr_host[ele_i]);
-                //   }
-                //   printf ("]\n");
-                // }
+                if (pReidObj != NULL && pReidObj->ptr_host != NULL && pReidObj->featureSize > 0) {
+                  printf ("REID embedding for Object %lu [", id);
+                  for (guint ele_i = 0; ele_i < pReidObj->featureSize; ele_i++) {
+                    printf ("%f, ", pReidObj->ptr_host[ele_i]);
+                  }
+                  printf ("]\n");
+                }
 
                 // if (pReidObj != NULL && pReidObj->ptr_host != NULL && pReidObj->featureSize > 0) {
                 //   // Create the directory path
@@ -301,7 +301,7 @@ int main (int argc, char *argv[])
 {
   GMainLoop *loop = NULL;
   GstElement *pipeline = NULL, *streammux = NULL, *sink = NULL, *pgie = NULL, *nvvidconv = NULL,
-      *nvosd = NULL, *tiler = NULL, *sgie1 = NULL, *sgie2 = NULL, *nvtracker = NULL, *nvdslogger = NULL;
+      *nvosd = NULL, *tiler = NULL, *sgie1 = NULL, *sgie2 = NULL, *sgie3 = NULL, *nvtracker = NULL, *nvdslogger = NULL;
   
   GstBus *bus = NULL;
   guint bus_watch_id = 0;
@@ -312,6 +312,7 @@ int main (int argc, char *argv[])
   gboolean yaml_config = FALSE;
   NvDsGieType pgie_type = NVDS_GIE_PLUGIN_INFER, sgie1_type = NVDS_GIE_PLUGIN_INFER;
   NvDsGieType sgie2_type = NVDS_GIE_PLUGIN_INFER;
+  NvDsGieType sgie3_type = NVDS_GIE_PLUGIN_INFER;
 
   int current_device = -1;
   cudaGetDevice(&current_device);
@@ -340,6 +341,8 @@ int main (int argc, char *argv[])
           "secondary-gie1"));
     RETURN_ON_PARSER_ERROR(nvds_parse_gie_type(&sgie2_type, argv[1],
           "secondary-gie2"));
+    RETURN_ON_PARSER_ERROR(nvds_parse_gie_type(&sgie3_type, argv[1],
+          "secondary-gie3"));
   }
 
   /* Create gstreamer elements */
@@ -432,10 +435,11 @@ int main (int argc, char *argv[])
      nvinfer or nvinferserver */
   CREATE_GIE_INSTANCE(sgie1, sgie1_type, "secondary1-nvinference-engine");
   CREATE_GIE_INSTANCE(sgie2, sgie2_type, "secondary2-nvinference-engine");
+  CREATE_GIE_INSTANCE(sgie3, sgie3_type, "secondary3-nvinference-engine");
 
   /* Use nvdslogger for perf measurement. */
   nvdslogger = gst_element_factory_make ("nvdslogger", "nvdslogger");
-  g_object_set (G_OBJECT (nvdslogger), "fps-measurement-interval-sec", 1, NULL);
+  g_object_set (G_OBJECT (nvdslogger), "fps-measurement-interval-sec", 3, NULL);
 
   /* Use nvtiler to composite the batched frames into a 2D tiled array based
    * on the source of the frames. */
@@ -469,6 +473,7 @@ int main (int argc, char *argv[])
     RETURN_ON_PARSER_ERROR(nvds_parse_gie(pgie, argv[1], "primary-gie"));
     RETURN_ON_PARSER_ERROR(nvds_parse_gie(sgie1, argv[1], "secondary-gie1"));
     RETURN_ON_PARSER_ERROR(nvds_parse_gie(sgie2, argv[1], "secondary-gie2"));
+    RETURN_ON_PARSER_ERROR(nvds_parse_gie(sgie3, argv[1], "secondary-gie3"));
     
     g_object_get (G_OBJECT (pgie), "batch-size", &pgie_batch_size, NULL);
     if (pgie_batch_size != num_sources) {
@@ -494,12 +499,12 @@ int main (int argc, char *argv[])
   bus_watch_id = gst_bus_add_watch (bus, bus_call, loop);
   gst_object_unref (bus);
 
-  gst_bin_add_many (GST_BIN (pipeline), pgie, nvtracker, sgie1, sgie2, nvdslogger,
+  gst_bin_add_many (GST_BIN (pipeline), pgie, nvtracker, sgie1, sgie2, sgie3, nvdslogger,
       nvvidconv, nvosd, tiler, sink, NULL);
 
   /* Link the elements together */
   if (!gst_element_link_many (streammux, pgie, nvtracker, sgie1,
-      sgie2, nvdslogger, tiler, nvvidconv, nvosd, sink, NULL)) {
+      sgie2, sgie3, nvdslogger, tiler, nvvidconv, nvosd, sink, NULL)) {
     g_printerr ("Elements could not be linked. Exiting.\n");
     return -1;
   }
